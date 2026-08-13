@@ -1,0 +1,22 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "NoCursorShadow", "src\NoCursorShadow.vcxproj", "{DD0F7A80-644B-4F75-8A9D-B1EA90531141}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DD0F7A80-644B-4F75-8A9D-B1EA90531141}.Debug|Win32.ActiveCfg = Debug|Win32
+		{DD0F7A80-644B-4F75-8A9D-B1EA90531141}.Debug|Win32.Build.0 = Debug|Win32
+		{DD0F7A80-644B-4F75-8A9D-B1EA90531141}.Release|Win32.ActiveCfg = Release|Win32
+		{DD0F7A80-644B-4F75-8A9D-B1EA90531141}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
+

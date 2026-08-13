@@ -1,0 +1,141 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: windows-2022
+
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Configure MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Validate tag and changelog
+        id: version
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'
+          if ($tag -notmatch '^v(?<version>\d+\.\d+\.\d+)$') {
+            throw "Tag '$tag' is not a semantic version tag."
+          }
+
+          $version = $Matches.version
+          $changelog = Get-Content -Raw -LiteralPath CHANGELOG.md
+          $escapedVersion = [regex]::Escape($version)
+          $pattern = "(?ms)^##[ \t]+$escapedVersion(?:[ \t]+-[^\r\n]+)?[ \t]*\r?\n(?<notes>.*?)(?=^##[ \t]+|\z)"
+          $section = [regex]::Match($changelog, $pattern)
+          if (-not $section.Success) {
+            throw "CHANGELOG.md has no section for $version."
+          }
+
+          $notes = $section.Groups['notes'].Value.Trim()
+          if ([string]::IsNullOrWhiteSpace($notes)) {
+            throw "The changelog section for $version is empty."
+          }
+
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "archive=NoCursorShadow-$tag.zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $notes | Set-Content -LiteralPath release-notes.md -Encoding utf8
+          $repository = '${{ github.repository }}'
+          @(
+            ''
+            '### Verification'
+            ''
+            '```text'
+            "gh attestation verify NoCursorShadow-$tag.zip -R $repository"
+            '```'
+          ) | Add-Content -LiteralPath release-notes.md -Encoding utf8
+
+      - name: Build Release Win32
+        shell: pwsh
+        run: msbuild NoCursorShadow.sln /t:Rebuild /p:Configuration=Release /p:Platform=Win32 /m
+
+      - name: Verify and package release
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $archiveName = '${{ steps.version.outputs.archive }}'
+          $binary = 'build\NoCursorShadow.asi'
+          $staging = "build\release\NoCursorShadow-v$version"
+          $archive = "build\$archiveName"
+
+          if (-not (Test-Path -LiteralPath $binary)) {
+            throw "Release binary was not produced."
+          }
+
+          $fileVersion = (Get-Item -LiteralPath $binary).VersionInfo.FileVersion
+          if ($fileVersion -ne $version) {
+            throw "Binary version $fileVersion does not match tag version $version."
+          }
+
+          New-Item -ItemType Directory -Path $staging -Force | Out-Null
+          Copy-Item -LiteralPath $binary -Destination $staging
+          Copy-Item -LiteralPath README.txt -Destination $staging
+
+          $entries = @(Get-ChildItem -LiteralPath $staging -File | Select-Object -ExpandProperty Name | Sort-Object)
+          $expected = @('NoCursorShadow.asi', 'README.txt')
+          if (Compare-Object $entries $expected) {
+            throw "Unexpected release staging contents: $($entries -join ', ')"
+          }
+
+          Compress-Archive -LiteralPath (Get-ChildItem -LiteralPath $staging).FullName -DestinationPath $archive -CompressionLevel Optimal
+          $digest = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$digest  $archiveName" | Set-Content -LiteralPath "$archive.sha256" -Encoding ascii
+
+      - name: Attest release archive
+        uses: actions/attest@v4
+        with:
+          subject-path: build/${{ steps.version.outputs.archive }}
+
+      - name: Publish GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $repository = '${{ github.repository }}'
+          $archive = 'build\${{ steps.version.outputs.archive }}'
+          $checksum = 'build\${{ steps.version.outputs.archive }}.sha256'
+
+          gh release view $tag --repo $repository *> $null
+          $releaseExists = $LASTEXITCODE -eq 0
+          $global:LASTEXITCODE = 0
+
+          if ($releaseExists) {
+            gh release upload $tag $archive $checksum `
+              --repo $repository `
+              --clobber
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to replace assets for release $tag."
+            }
+
+            gh release edit $tag `
+              --repo $repository `
+              --title "No Cursor Shadow $tag" `
+              --notes-file release-notes.md
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to update release $tag."
+            }
+          } else {
+            gh release create $tag $archive $checksum `
+              --repo $repository `
+              --title "No Cursor Shadow $tag" `
+              --notes-file release-notes.md `
+              --verify-tag
+            if ($LASTEXITCODE -ne 0) {
+              throw "Failed to create release $tag."
+            }
+          }
