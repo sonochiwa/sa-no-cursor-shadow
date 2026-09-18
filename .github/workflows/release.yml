@@ -49,15 +49,6 @@ jobs:
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "archive=NoCursorShadow-$tag.zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           $notes | Set-Content -LiteralPath release-notes.md -Encoding utf8
-          $repository = '${{ github.repository }}'
-          @(
-            ''
-            '### Verification'
-            ''
-            '```text'
-            "gh attestation verify NoCursorShadow-$tag.zip -R $repository"
-            '```'
-          ) | Add-Content -LiteralPath release-notes.md -Encoding utf8
 
       - name: Build Release Win32
         shell: pwsh
