@@ -74,10 +74,9 @@ jobs:
 
           New-Item -ItemType Directory -Path $staging -Force | Out-Null
           Copy-Item -LiteralPath $binary -Destination $staging
-          Copy-Item -LiteralPath README.txt -Destination $staging
 
           $entries = @(Get-ChildItem -LiteralPath $staging -File | Select-Object -ExpandProperty Name | Sort-Object)
-          $expected = @('NoCursorShadow.asi', 'README.txt')
+          $expected = @('NoCursorShadow.asi')
           if (Compare-Object $entries $expected) {
             throw "Unexpected release staging contents: $($entries -join ', ')"
           }

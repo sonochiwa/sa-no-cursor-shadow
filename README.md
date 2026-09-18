@@ -37,7 +37,6 @@ Release archives are laid out for direct extraction into that directory:
 
 ```text
 NoCursorShadow.asi
-README.txt
 ```
 
 ## Building
