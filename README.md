@@ -1,52 +1,50 @@
 # No Cursor Shadow
 
-An ASI plugin that removes the offset shadow from the GTA San Andreas menu
-cursor.
+`NoCursorShadow.asi` is a standalone GTA San Andreas plugin that removes the
+offset shadow from the front-end cursor.
 
-The game draws every front-end cursor twice: first as a translucent grey copy
-shifted down and right, then as the normal cursor. This plugin skips only the
-first draw call. It affects both the standard arrow and the four-way cursor
-shown on the map without changing world, vehicle, pedestrian, or text shadows.
+The game draws every front-end cursor twice inside `CMenuManager::Draw`: first
+a translucent grey copy shifted down and right, then the cursor itself. The
+plugin skips only the first draw. It covers both the standard arrow and the
+four-way cursor shown on the map, and changes no other shadow in the game.
 
-The patch is deliberately version-specific. It verifies the original machine
-code before writing anything; an unknown or already-modified executable is left
-untouched.
+The patch is version-specific. It verifies the original machine code at both
+sites before writing anything; an unknown or already modified executable is
+left untouched.
 
 ## Features
 
 - Removes the shadow from the normal front-end cursor.
 - Removes the shadow from the map drag cursor.
-- Works while SA-MP is loaded because the affected renderer belongs to GTA.
-- Makes no permanent changes to `gta_sa.exe`.
+- Works while SA-MP is loaded, because the affected renderer belongs to GTA.
+- Verifies the bytes it replaces before writing and refuses to patch any
+  other executable.
 
 ## Requirements
 
-- GTA San Andreas 1.0 US with the expected `CMenuManager::Draw` code.
-- A working ASI loader.
-- Windows on an x86-compatible system.
+- GTA San Andreas 1.0 US (Compact or Hoodlum executable).
+- An ASI loader, such as Silent's ASI Loader or Ultimate ASI Loader.
 
-Other executable versions are unsupported. The plugin safely does nothing when
-the expected five-byte call signature is absent.
+Other executable versions are unsupported. When the expected five-byte call
+is absent at either site the plugin does nothing.
 
 ## Installation
 
-Copy `NoCursorShadow.asi` to the GTA San Andreas directory containing
-`gta_sa.exe`. Remove the file to uninstall the fix.
+1. Extract `NoCursorShadow.asi` into the GTA San Andreas directory or its
+   `scripts` directory.
+2. Start the game.
 
-Release archives are laid out for direct extraction into that directory:
-
-```text
-NoCursorShadow.asi
-```
+Remove the file to uninstall the fix.
 
 ## Building
 
-Build `NoCursorShadow.sln` with Visual Studio 2022, the v143 C++ toolset,
-`Release` configuration, and `Win32` platform. The output is written to:
+Visual Studio 2022 (v143), `Release|Win32`. Open `NoCursorShadow.sln` or run:
 
-```text
-build\NoCursorShadow.asi
+```powershell
+msbuild NoCursorShadow.sln /t:Rebuild /p:Configuration=Release /p:Platform=Win32
 ```
+
+The plugin is written to `build\NoCursorShadow.asi`.
 
 ## Repository Layout
 
@@ -55,36 +53,39 @@ NoCursorShadow.sln
 README.md
 CHANGELOG.md
 LICENSE
+.github\workflows\release.yml   Tagged release build, checksum and attestation
 src\
-  NoCursorShadow.cpp
-  NoCursorShadow.rc
+  NoCursorShadow.cpp            DllMain and the patch thread
+  NoCursorShadow.rc             Version resource
   NoCursorShadow.vcxproj
+  addresses.h                   Patch sites and expected bytes
+  patch.cpp / patch.h           Readable-memory check and protected write
   resource.h
+  version.h
 ```
 
 ## How It Works
 
-In GTA San Andreas 1.0 US, both front-end cursor branches call
-`CSprite2d::Draw` with color `(100, 100, 100, 50)` and a rectangle offset by
-`(6, 3)`. The plugin verifies the relative calls at `0x57C0BC` and `0x57C1B2`,
-replaces them with stack cleanup, and leaves the following opaque cursor draws
-unchanged.
+In GTA San Andreas 1.0 US both front-end cursor branches call
+`CSprite2d::Draw` with colour `(100, 100, 100, 50)` and a rectangle offset by
+`(6, 3)` before drawing the opaque cursor. The plugin verifies the relative
+calls at `0x57C0BC` (map crosshair) and `0x57C1B2` (standard cursor), replaces
+each with `add esp, 8; nop; nop` to discard the two stack arguments the
+`__thiscall` callee would have popped, and leaves the opaque cursor draws that
+follow unchanged.
 
 ## Release Integrity
 
-Tagged release archives are built from the tagged source by GitHub Actions.
-Each release includes a SHA-256 checksum file and a signed build-provenance
-attestation. After downloading the archive, verify its provenance and integrity
-with GitHub CLI:
+Tagged releases are built by GitHub Actions from the tagged commit. Each
+release carries `NoCursorShadow-vX.Y.Z.zip`, its SHA-256 in
+`NoCursorShadow-vX.Y.Z.zip.sha256` and a signed build-provenance attestation,
+which proves that the archive was produced by this repository's workflow
+from that revision. It does not prove the code is bug-free.
 
 ```text
-gh attestation verify NoCursorShadow-v1.0.0.zip -R sonochiwa/sa-no-cursor-shadow
+gh attestation verify NoCursorShadow-vX.Y.Z.zip -R sonochiwa/sa-no-cursor-shadow
 ```
-
-The attestation identifies the repository workflow and source revision that
-produced the archive. It is not a guarantee that the source is bug-free or
-safe.
 
 ## License
 
-This project is available under the MIT License. See `LICENSE`.
+MIT. See [LICENSE](LICENSE).
