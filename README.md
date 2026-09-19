@@ -19,7 +19,7 @@ standard arrow and the map cursor and changes nothing else.
 - GTA San Andreas 1.0 US (Compact or Hoodlum executable).
 - An ASI loader, such as Silent's ASI Loader or Ultimate ASI Loader.
 
-Other executable versions are left untouched.
+Other executables are left untouched.
 
 ## Installation
 

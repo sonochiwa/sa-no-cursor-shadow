@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- Added `README.txt` to the release archive.
+
 ## 1.0.1
 
 - Added version information to the plugin file.
